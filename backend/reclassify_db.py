@@ -81,6 +81,8 @@ def reclassify_all():
             h.model_confidence = conf
             h.anomaly_score = anomaly_score
             h.priority_score = score
+            if not getattr(h, "satellite_sensor", None):
+                h.satellite_sensor = "VIIRS (Suomi-NPP 375m)"
             updated += 1
 
         db.commit()

@@ -80,7 +80,7 @@ async def ensure_live_osm_data():
         if hotspot_count == 0:
             logger.info("No hotspots in database. Ingesting initial thermal detections...")
             from app.services.historical_backfill import HistoricalBackfillService
-            await HistoricalBackfillService.run_backfill(db, limit=50)
+            await HistoricalBackfillService.run_backfill(db, limit=500)
 
             # If NASA open feed returned no current fires, seed initial representative hotspots across India
             if db.query(ActiveHotspot).count() == 0:

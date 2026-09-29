@@ -43,6 +43,9 @@ class ActiveHotspot(Base):
     # Data source identifier: "NASA_FIRMS" or "SIMULATION"
     data_source = Column(String(50), default="NASA_FIRMS", nullable=False, index=True)
     
+    # Specific Satellite Sensor: "VIIRS (Suomi-NPP 375m)", "VIIRS (NOAA-20 375m)", "MODIS (Terra 1km)", "MODIS (Aqua 1km)"
+    satellite_sensor = Column(String(50), default="VIIRS (Suomi-NPP 375m)", nullable=False)
+    
     nearest_refinery_id = Column(Integer, ForeignKey("refineries.id"), nullable=True, index=True)
 
     # Relationships

@@ -61,13 +61,18 @@ class SuppressionEngine:
             # First observation at coordinate
             historical_baseline_frp = current_frp
 
-        # If connected to a refinery and no direct cluster records exist, check suppression baseline
-        if nearest_refinery_id and not history_records:
+        # If connected to a refinery, check suppression baseline and historical active days
+        if nearest_refinery_id:
             ref_hist = db.query(SuppressionHistory).filter(
                 SuppressionHistory.refinery_id == nearest_refinery_id
             ).order_by(SuppressionHistory.detection_date.desc()).first()
             if ref_hist and ref_hist.average_frp > 0:
                 historical_baseline_frp = ref_hist.average_frp
+            ref_days = db.query(SuppressionHistory.detection_date).filter(
+                SuppressionHistory.refinery_id == nearest_refinery_id
+            ).distinct().count()
+            if ref_days > 0:
+                persistence_days = max(persistence_days, ref_days)
 
         historical_baseline_frp = max(10.0, round(historical_baseline_frp, 1))
 

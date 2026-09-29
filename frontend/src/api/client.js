@@ -115,7 +115,7 @@ export const updateHotspotStatus = async (id, status) => {
   return response.data;
 };
 
-export const triggerBackfill = async (limit = 200) => {
+export const triggerBackfill = async (limit = 500) => {
   const response = await apiClient.post('/api/admin/backfill', null, { params: { limit } });
   return response.data;
 };

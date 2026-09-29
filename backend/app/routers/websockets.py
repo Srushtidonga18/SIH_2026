@@ -95,7 +95,7 @@ async def _run_backfill_task(limit: int):
 @router.post("/api/admin/backfill")
 async def trigger_historical_backfill(
     background_tasks: BackgroundTasks,
-    limit: int = 200,
+    limit: int = 500,
     db: Session = Depends(get_db)
 ):
     """

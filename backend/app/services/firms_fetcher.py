@@ -135,6 +135,19 @@ class FIRMSFetcher:
                 except (ValueError, TypeError):
                     firms_type = 0
 
+                # Parse Satellite Sensor Tag (Suomi-NPP VIIRS, NOAA-20 VIIRS, MODIS Terra, MODIS Aqua)
+                sat_code = str(row.get("satellite", "")).strip().upper()
+                if sat_code in ["N", "NPP", "SUOMI", "SUOMI-NPP"]:
+                    satellite_sensor = "VIIRS (Suomi-NPP 375m)"
+                elif sat_code in ["J1", "J2", "N20", "NOAA20", "NOAA-20"]:
+                    satellite_sensor = "VIIRS (NOAA-20 375m)"
+                elif sat_code in ["T", "TERRA"]:
+                    satellite_sensor = "MODIS (Terra 1km)"
+                elif sat_code in ["A", "AQUA"]:
+                    satellite_sensor = "MODIS (Aqua 1km)"
+                else:
+                    satellite_sensor = "VIIRS (Suomi-NPP 375m)"
+
                 records.append({
                     "latitude": lat,
                     "longitude": lon,
@@ -142,6 +155,7 @@ class FIRMSFetcher:
                     "frp": frp,
                     "confidence": confidence,
                     "firms_type": firms_type,
+                    "satellite_sensor": satellite_sensor,
                     "detected_at": detected_at
                 })
             except Exception as parse_err:
@@ -234,8 +248,14 @@ class FIRMSFetcher:
             is_critical_alarm = (frp > 100.0)
             ndvi_pending = (ndvi is None)
             model_conf = 0.90
-            anomaly_score = 0.2
-            persistence_days = 1
+            # Compute real 30-day cluster persistence_days from DB history
+            _, _, _, _, _, persistence_days, _ = SuppressionEngine.evaluate(
+                lat=lat, lon=lon, current_frp=frp,
+                nearest_refinery_id=spatial_res.nearest_refinery_id,
+                detected_at=detected_at, db=db
+            )
+            # Compute real Isolation Forest anomaly score
+            anomaly_score = classifier_service.compute_anomaly_score(brightness, frp, persistence_days)
         
         else:
             # Standard Dual-Model Inference & Scoring
@@ -299,12 +319,15 @@ class FIRMSFetcher:
             ActiveHotspot.detected_at == detected_at
         ).first()
 
+        satellite_sensor = raw.get("satellite_sensor", "VIIRS (Suomi-NPP 375m)")
+
         if existing:
             hotspot = existing
             hotspot.brightness = brightness
             hotspot.frp = frp
             hotspot.confidence = confidence
             hotspot.firms_type = firms_type
+            hotspot.satellite_sensor = satellite_sensor
             if ndvi is not None:
                 hotspot.ndvi = ndvi
                 hotspot.ndvi_pending = False
@@ -330,6 +353,7 @@ class FIRMSFetcher:
                 frp=frp,
                 confidence=confidence,
                 firms_type=firms_type,
+                satellite_sensor=satellite_sensor,
                 ndvi=ndvi,
                 ndvi_pending=ndvi_pending,
                 persistence_days=persistence_days,

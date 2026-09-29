@@ -24,6 +24,7 @@ def get_realtime_hotspots(
     hide_suppressed: bool = Query(False, description="Hide suppressed operational flares"),
     min_frp: Optional[float] = Query(None, description="Filter minimum Fire Radiative Power (MW)"),
     category: Optional[str] = Query(None, description="Filter by classification label"),
+    limit: int = Query(500, ge=1, le=5000, description="Maximum hotspots limit"),
     db: Session = Depends(get_db)
 ):
     """
@@ -41,7 +42,7 @@ def get_realtime_hotspots(
     if category:
         query = query.filter(ActiveHotspot.classification == category)
 
-    hotspots = query.order_by(desc(ActiveHotspot.detected_at)).limit(1000).all()
+    hotspots = query.order_by(desc(ActiveHotspot.detected_at)).limit(limit).all()
 
     ref_ids = {h.nearest_refinery_id for h in hotspots if h.nearest_refinery_id}
     refinery_map = {}
@@ -88,6 +89,7 @@ def get_realtime_hotspots(
                 "detected_at": h.detected_at.isoformat(),
                 "nearest_refinery_id": h.nearest_refinery_id,
                 "nearest_refinery_name": ref_name or "Open Region Facility",
+                "satellite_sensor": getattr(h, "satellite_sensor", None) or "VIIRS (Suomi-NPP 375m)",
                 "reasons": reasons
             }
         ))

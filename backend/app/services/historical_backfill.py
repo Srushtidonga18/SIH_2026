@@ -37,17 +37,21 @@ class HistoricalBackfillService:
         async with httpx.AsyncClient(timeout=60.0) as client:
             if map_key and len(map_key) > 5 and map_key != "YOUR_NASA_FIRMS_MAP_KEY_HERE":
                 bbox_str = f"{int(BBOX_WEST)},{int(BBOX_SOUTH)},{int(BBOX_EAST)},{int(BBOX_NORTH)}"
-                d_range = min(days, 5)
-                # Pull SNPP and NOAA-20 for multi-satellite multi-day historical coverage
-                for src in ["VIIRS_SNPP_NRT", "VIIRS_NOAA20_NRT"]:
-                    url = f"https://firms.modaps.eosdis.nasa.gov/api/area/csv/{map_key}/{src}/{bbox_str}/{d_range}"
-                    try:
-                        logger.info(f"Fetching multi-day archive from NASA FIRMS {src} (range={d_range})...")
-                        resp = await client.get(url)
-                        if resp.status_code == 200 and not resp.text.startswith("Invalid"):
-                            csv_data_chunks.append(resp.text)
-                    except Exception as e:
-                        logger.error(f"Error fetching from keyed API {src}: {e}")
+                target_days = min(days, 30)
+                today = datetime.now(timezone.utc).date()
+                # Iterate every single consecutive calendar day (1-day step) from NASA Keyed API
+                for day_offset in range(0, target_days, 1):
+                    chunk_date = today - timedelta(days=day_offset)
+                    date_str = chunk_date.strftime("%Y-%m-%d")
+                    for src in ["VIIRS_SNPP_NRT", "VIIRS_NOAA20_NRT"]:
+                        url = f"https://firms.modaps.eosdis.nasa.gov/api/area/csv/{map_key}/{src}/{bbox_str}/5/{date_str}"
+                        try:
+                            logger.info(f"Fetching 5-day archive chunk from NASA FIRMS {src} (date={date_str})...")
+                            resp = await client.get(url)
+                            if resp.status_code == 200 and not resp.text.startswith("Invalid"):
+                                csv_data_chunks.append(resp.text)
+                        except Exception as e:
+                            logger.error(f"Error fetching keyed API {src} for date {date_str}: {e}")
             else:
                 # NASA official public South Asia multi-day feeds
                 logger.info("Using NASA FIRMS official multi-day South Asia open archive feeds...")
@@ -82,7 +86,7 @@ class HistoricalBackfillService:
         return sorted_records
 
     @classmethod
-    async def run_backfill(cls, db: Session, limit: int = 250) -> Dict[str, Any]:
+    async def run_backfill(cls, db: Session, limit: int = 500) -> Dict[str, Any]:
         """
         Runs historical detections chronologically through the full pipeline:
         Spatial Analysis -> Suppression -> Conditional NDVI -> Dual ML -> Upsert
@@ -174,7 +178,7 @@ def run_cold_start_backfill():
     init_db()
     db_session = SessionLocal()
     try:
-        res = asyncio.run(HistoricalBackfillService.run_backfill(db_session, limit=200))
+        res = asyncio.run(HistoricalBackfillService.run_backfill(db_session, limit=500))
         print("[BACKFILL ENGINE] Day-1 Backfill Complete! Baselines active for all Indian refineries.", res)
     finally:
         db_session.close()

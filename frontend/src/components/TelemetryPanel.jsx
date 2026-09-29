@@ -210,6 +210,9 @@ export default function TelemetryPanel({ selectedHotspot, onOpenExportPdf }) {
             <span>{badge.icon}</span>
             <span>{badge.label}</span>
           </span>
+          <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs font-mono font-bold px-2.5 py-1 rounded flex items-center gap-1.5 shadow-sm">
+            🛰️ {h.satelliteSensor || h.satellite_sensor || 'VIIRS (Suomi-NPP 375m)'}
+          </span>
         </div>
 
         <button
